@@ -9,13 +9,18 @@ import numpy as np
     
 """
 
+DEFAULT_NUM_IND = 1000
+DEFAULT_GENERACION = 55
+DEFAULT_CRUZA_PROB = 0.618
+DEFAULT_MUTACION_PROB = 0.021
+
 class OptimizadorEmpaquetadoMultiContenedor:
     def __init__(self,
                  datos_empaquetado : DatosEmpaquetado,
-                 tamano_poblacion: int = 1000,
-                 generaciones: int = 55,
-                 prob_cruce: float = 0.618,
-                 prob_mutacion: float = 0.021) -> None:
+                 tamano_poblacion: int = DEFAULT_NUM_IND,
+                 generaciones: int = DEFAULT_GENERACION,
+                 prob_cruce: float = DEFAULT_CRUZA_PROB,
+                 prob_mutacion: float = DEFAULT_MUTACION_PROB) -> None:
 
         self.num_contenedores = len(datos_empaquetado.contenedores)
         self.num_tipos_paquetes = len(datos_empaquetado.requisitos_paquetes)
