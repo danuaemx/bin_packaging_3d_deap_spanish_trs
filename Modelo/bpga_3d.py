@@ -9,19 +9,34 @@ import numpy as np
     
 """
 
-DEFAULT_NUM_IND = 1000
-DEFAULT_GENERACION = 55
+DEFAULT_NUM_IND = 16180
+DEFAULT_GENERACION = 61
 DEFAULT_CRUZA_PROB = 0.618
 DEFAULT_MUTACION_PROB = 0.021
 
 class OptimizadorEmpaquetadoMultiContenedor:
+
+    """
+    Clase para optimizar el empaquetado de múltiples contenedores 3D con un algoritmo genético
+    Con restricciones de cantidad de paquetes y rotaciones permitidas para contenedores de diferentes dimensiones
+    """
+
     def __init__(self,
                  datos_empaquetado : DatosEmpaquetado,
                  tamano_poblacion: int = DEFAULT_NUM_IND,
                  generaciones: int = DEFAULT_GENERACION,
                  prob_cruce: float = DEFAULT_CRUZA_PROB,
                  prob_mutacion: float = DEFAULT_MUTACION_PROB) -> None:
-
+        
+        """
+        Inicializa el optimizador con los datos de empaquetado y parámetros de algoritmo
+        :param datos_empaquetado: DatosEmpaquetado con los requisitos de contenedores y paquetes
+        :param tamano_poblacion: Tamaño de la población de individuos a generar
+        :param generaciones: Número de generaciones a ejecutar
+        :param prob_cruce: Probabilidad de cruce entre dos individuos
+        :param prob_mutacion: Probabilidad de mutación de un gen en un individuo
+        :return: None
+        """
         self.num_contenedores = len(datos_empaquetado.contenedores)
         self.num_tipos_paquetes = len(datos_empaquetado.requisitos_paquetes)
         self.requisitos_contenedores = datos_empaquetado.contenedores
@@ -34,12 +49,15 @@ class OptimizadorEmpaquetadoMultiContenedor:
         self.generaciones = generaciones
         self.prob_cruce = prob_cruce
         self.prob_mutacion = prob_mutacion
-
+        self.genes_por_contenedor = [] # Más adelante se inicializará
         # Inicializar componentes DEAP
         self._configurar_deap()
 
     def _generar_rotaciones(self) -> dict[int, list[tuple[str, int, int, int]]]:
-        """Genera un diccionario con todas las rotaciones posibles para cada tipo de paquete"""
+        """
+        Genera un diccionario con todas las rotaciones posibles y permitidas para cada tipo de paquete
+        :return: Diccionario con las rotaciones posibles para cada tipo de paquete
+        """
         rotaciones = {}
         for idx, tipo_paquete in enumerate(self.tipos_paquetes):
             nombre, (x, y, z) = tipo_paquete.nombre, tipo_paquete.dimensiones
@@ -60,7 +78,11 @@ class OptimizadorEmpaquetadoMultiContenedor:
         return rotaciones
 
     def _configurar_deap(self) -> None:
-        """Inicializa el creador y toolbox de DEAP para múltiples contenedores"""
+        """
+        Inicializa el creador y toolbox de DEAP para múltiples contenedores
+        :return: None
+        """
+
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMax)
 
@@ -68,7 +90,9 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
         # Registrar generadores para cada contenedor
         atributos = []
+
         for i, requisitos in enumerate(self.requisitos_contenedores):
+            self.genes_por_contenedor.append(4)
             # Indicador binario de uso del contenedor
             self.toolbox.register(
                 f"attr_usar_contenedor_{i}",
@@ -89,38 +113,38 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
             # Cantidad y rotación de paquetes para este contenedor
             for j, tipo_paquete in enumerate(self.tipos_paquetes):
-                self.toolbox.register(
-                    f"attr_cantidad_{i}_{j}",
-                    random.randint,
-                    0,  # Mínimo 0 por contenedor
-                    tipo_paquete.cantidad_maxima  # Máximo por contenedor
-                )
-                self.toolbox.register(
-                    f"attr_rotacion_{i}_{j}",
-                    random.randint,
-                    0,
-                    len(self.tipos_paquetes_rotados[j]) - 1
-                )
-                atributos.extend([
-                    getattr(self.toolbox, f"attr_cantidad_{i}_{j}"),
-                    getattr(self.toolbox, f"attr_rotacion_{i}_{j}")
-                ])
+                #Usar el str del dict para obtener el tipo de rotacion
+                for (rot, _, _, _) in self.tipos_paquetes_rotados[j]:
+                    self.toolbox.register(
+                        f"attr_c_{i}_p_{j}_rot_{rot}_cantidad",
+                        random.randint,
+                        0,
+                        tipo_paquete.cantidad_maxima
+                    )
+                    atributos.append(getattr(self.toolbox, f"attr_contenedor_{i}_{rot}_cantidad"))
+                    # Suma para genes por contendores en array
+                    self.genes_por_contenedor[i] += 1
 
         self.toolbox.register("individual", tools.initCycle, creator.Individual, atributos, n=1)
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
-
+        
         self.toolbox.register("evaluate", self._evaluar_aptitud)
-        self.toolbox.register("mate", tools.cxUniform, indpb=0.5)
+        self.toolbox.register("mate", tools.cxUniform, indpb=self.prob_cruce)
         self.toolbox.register("mutate", self._mutar)
         self.toolbox.register("select", tools.selTournament, tournsize=3)
 
-    def _mutar(self, individuo):
-        """Operador de mutación para múltiples contenedores"""
-        genes_por_contenedor = 1 + 3 + (
-                    self.num_tipos_paquetes * 2)  # indicador + dimensiones + (cantidad + rotación) por tipo
+
+    def _mutar(self, individuo)->tuple:
+        """
+        Operador de mutación para múltiples contenedores
+        :param individuo: Lista de genes que representan un individuo
+        :return: Tupla con el individuo mutado
+        """
+        #Modificado para genes totales por contenedor
 
         for i, requisitos in enumerate(self.requisitos_contenedores):
-            inicio = i * genes_por_contenedor
+            # Inicio de los genes para este contenedor
+            inicio = i * self.genes_por_contenedor[max(0,i-1)]
 
             # Mutar indicador de uso del contenedor
             if random.random() < self.prob_mutacion:
@@ -134,33 +158,32 @@ class OptimizadorEmpaquetadoMultiContenedor:
                         requisitos.dimensiones_maximas[j]
                     )
 
-            # Solo mutar cantidades y incluyendo rotaciones si el contenedor está en uso
+            # Solo mutar cantidades por cada rotación permitida si el contenedor está en uso
             if individuo[inicio] == 1:
-                for j in range(self.num_tipos_paquetes):
-                    idx_cantidad = inicio + 4 + (j * 2)
-                    idx_rotacion = idx_cantidad + 1
 
-                    if random.random() < self.prob_mutacion:
-                        individuo[idx_cantidad] = random.randint(
-                            0,
-                            self.tipos_paquetes[j].cantidad_maxima
-                        )
+                for j, tipo_paquete in enumerate(self.tipos_paquetes):
+                    for k,(rot, _, _, _) in enumerate(self.tipos_paquetes_rotados[j]):
+                        idx_cantidad = inicio + 4 + j + k
 
-                    if random.random() < self.prob_mutacion:
-                        individuo[idx_rotacion] = random.randint(
-                            0,
-                            len(self.tipos_paquetes_rotados[j]) - 1
-                        )
-            else:
-                # Si el contenedor no está en uso, establecer cantidades en 0
-                for j in range(self.num_tipos_paquetes):
-                    idx_cantidad = inicio + 4 + (j * 2)
-                    individuo[idx_cantidad] = 0
-
+                        if random.random() < self.prob_mutacion:
+                            individuo[idx_cantidad] = random.randint(0, tipo_paquete.cantidad_maxima)
+            else :
+                for j, tipo_paquete in enumerate(self.tipos_paquetes):
+                    for k,(rot, _, _, _) in enumerate(self.tipos_paquetes_rotados[j]):
+                        idx_cantidad = inicio + 4 + j + k
+                        individuo[idx_cantidad] = 0
+        
         return (individuo,)
 
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
-        """Verifica si un paquete puede ser colocado en la posición dada"""
+        """
+        Verifica si un paquete puede ser colocado en la posición dada
+        :param paquetes_existentes: Lista de paquetes ya colocados en el contenedor
+        :param nuevo_paquete: Tupla con las dimensiones del nuevo paquete
+        :param posicion: Tupla con la posición (x, y, z) del nuevo paquete
+        :param dimensiones_contenedor: Tupla con las dimensiones del contenedor
+        :return: True si el paquete puede ser colocado, False si no
+        """
         x, y, z = posicion
         l, a, h = nuevo_paquete[1:4]
 
@@ -178,7 +201,12 @@ class OptimizadorEmpaquetadoMultiContenedor:
         return True
 
     def _colocar_paquetes_en_contenedor(self, genes_contenedor, indice_contenedor) -> tuple[list, tuple]:
-        """Coloca paquetes en un contenedor específico usando sus restricciones individuales"""
+        """
+        Coloca paquetes en un contenedor específico usando sus restricciones individuales
+        :param genes_contenedor: Lista de genes que representan un contenedor
+        :param indice_contenedor: Índice del contenedor en la lista de contenedores
+        :return: Tupla con la lista de paquetes colocados y las dimensiones del contenedor
+        """
         dimensiones_contenedor = tuple(genes_contenedor[:3])
         requisitos = self.requisitos_contenedores[indice_contenedor]
 
@@ -190,41 +218,36 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
         paquetes_colocados = []
         paso_rejilla = 1
+        #Para cada tipo de paquete y rotacion permitida
+        for j, tipo_paquete in enumerate(self.tipos_paquetes):
+            for k, (rot, l, a, h) in enumerate(self.tipos_paquetes_rotados[j]):
+                cantidad = genes_contenedor[4 + j + k]
+                for _ in range(cantidad):
+                    # Inicializar variables para colocar el paquete
+                    paquete = (0, 0, 0, l, a, h, f"{tipo_paquete.nombre}_{rot}")
+                    paquete_colocado = False
 
-        for i in range(3, len(genes_contenedor), 2):
-            tipo_paquete_idx = (i - 3) // 2
-            cantidad = genes_contenedor[i]
-            # Si la cantidad es 0, continuar con el siguiente tipo
-            if cantidad == 0:
-                continue
-
-            rotacion_idx = genes_contenedor[i + 1]
-            tipo_paquete = self.tipos_paquetes_rotados[tipo_paquete_idx][rotacion_idx]
-
-            for _ in range(cantidad):
-                colocado = False
-                for x in range(0, dimensiones_contenedor[0] - tipo_paquete[1] + 1, paso_rejilla):
-                    for y in range(0, dimensiones_contenedor[1] - tipo_paquete[2] + 1, paso_rejilla):
-                        for z in range(0, dimensiones_contenedor[2] - tipo_paquete[3] + 1, paso_rejilla):
-                            if self._puede_colocar_paquete(paquetes_colocados, tipo_paquete, (x, y, z),
-                                                           dimensiones_contenedor):
-                                paquetes_colocados.append(
-                                    (x, y, z, tipo_paquete[1], tipo_paquete[2], tipo_paquete[3], tipo_paquete[0])
-                                )
-                                colocado = True
+                    # Probar todas las posiciones en la rejilla
+                    for z in range(0, dimensiones_contenedor[2], paso_rejilla):
+                        for y in range(0, dimensiones_contenedor[1], paso_rejilla):
+                            for x in range(0, dimensiones_contenedor[0], paso_rejilla):
+                                if self._puede_colocar_paquete(paquetes_colocados, paquete, (x, y, z), dimensiones_contenedor):
+                                    paquete_colocado = True
+                                    paquetes_colocados.append((x, y, z, l, a, h, paquete[6]))
+                                    break
+                            if paquete_colocado:
                                 break
-                        if colocado:
+                        if paquete_colocado:
                             break
-                    if colocado:
-                        break
-                if not colocado:
-                    break
 
         return paquetes_colocados, dimensiones_contenedor
 
     def _evaluar_aptitud(self, individuo) -> tuple[float]:
-        """Evalúa la aptitud de un individuo con múltiples contenedores"""
-        genes_por_contenedor = 1 + 3 + (self.num_tipos_paquetes * 2)
+        """
+        Evalúa la aptitud de un individuo con múltiples contenedores
+        :param individuo: Lista de genes que representan un individuo
+        :return: Tupla con la aptitud del individuo
+        """
         cantidad_total = {tipo.nombre: 0 for tipo in self.tipos_paquetes}
         volumen_total_utilizado = 0
         volumen_total_contenedores = 0
@@ -232,15 +255,14 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
         # Verificar restricciones globales de cantidad máxima
         for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
+            inicio = i * self.genes_por_contenedor[max(0,i-1)]
             usar_contenedor = individuo[inicio]
 
             if usar_contenedor == 1:
-                # Sumar las cantidades de cada tipo de paquete en este contenedor
+                # Sumar las cantidades de cada tipo de paquete en este contenedor para cada rotacion permitida
                 for j, tipo_paquete in enumerate(self.tipos_paquetes):
-                    idx_cantidad = inicio + 4 + (j * 2)
-                    cantidad = individuo[idx_cantidad]
-                    cantidad_total[tipo_paquete.nombre] += cantidad
+                    for k,_ in enumerate(self.tipos_paquetes_rotados[j]):
+                        cantidad_total[tipo_paquete.nombre] += individuo[inicio + 4 + j + k]
 
         # Verificar si se exceden los máximos globales
         for tipo_paquete in self.tipos_paquetes:
@@ -252,12 +274,12 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
         # Procesar cada contenedor
         for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
+            inicio = i * self.genes_por_contenedor[max(0,i-1)]
             usar_contenedor = individuo[inicio]
 
             if usar_contenedor == 1:
                 contenedores_usados += 1
-                genes_contenedor = individuo[inicio + 1:inicio + genes_por_contenedor]
+                genes_contenedor = individuo[inicio + 1:inicio + self.genes_por_contenedor[i]]
                 paquetes_colocados, dimensiones_contenedor = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
 
                 # Actualizar conteo total de paquetes realmente colocados
@@ -287,14 +309,19 @@ class OptimizadorEmpaquetadoMultiContenedor:
         return (aptitud,)
 
     def obtener_posiciones_paquetes(self, individuo) -> dict:
-        """Obtiene las posiciones de los paquetes y dimensiones de todos los contenedores"""
-        genes_por_contenedor = 1 + 3 + (self.num_tipos_paquetes * 2)
+        """
+        Obtiene las posiciones de los paquetes y dimensiones de todos los contenedores
+        :param individuo: Lista de genes que representan un individuo
+        :return: Diccionario con las posiciones de los paquetes y dimensiones de los contenedores
+        """
+        #Para cada rotacion permitida se tiene un gen de cantidad
+
         resultados = {
             'contenedores': []
         }
 
         for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
+            inicio = i * self.genes_por_contenedor[max(0,i-1)]
             usar_contenedor = individuo[inicio]
 
             # Siempre incluir las dimensiones del contenedor
@@ -309,7 +336,7 @@ class OptimizadorEmpaquetadoMultiContenedor:
 
             # Solo procesar paquetes si el contenedor está en uso
             if usar_contenedor:
-                genes_contenedor = individuo[inicio + 1:inicio + genes_por_contenedor]
+                genes_contenedor = individuo[inicio + 1:inicio + self.genes_por_contenedor[i]]
                 paquetes_colocados, _ = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
 
                 contenedor_info['paquetes'] = [
@@ -325,7 +352,11 @@ class OptimizadorEmpaquetadoMultiContenedor:
         return resultados
 
     def optimizar(self, semilla=None) -> dict:
-        """Ejecuta la optimización del algoritmo genético para múltiples contenedores"""
+        """
+        Ejecuta la optimización del algoritmo genético para múltiples contenedores
+        :param semilla: Semilla para el generador de números aleatorios
+        :return: Diccionario con el mejor individuo, su aptitud y los resultados de la optimización
+        """
         if semilla is not None:
             random.seed(semilla)
 
