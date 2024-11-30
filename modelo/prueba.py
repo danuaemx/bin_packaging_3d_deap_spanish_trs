@@ -120,6 +120,7 @@ def prueba_3d() -> None:
     analisis = optimizador.analizar_resultados(resultado)
     optimizador.imprimir_resultados(resultado, analisis)
     optimizador.graficar_resultados(resultado)
+    optimizador.graficar_estadisticas()
 
 
 
