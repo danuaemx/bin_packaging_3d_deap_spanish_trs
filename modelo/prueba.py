@@ -36,7 +36,9 @@ def prueba_1d() -> None:
     # Analizar y mostrar resultados
     analisis = optimizador.analizar_resultados(resultado)
     optimizador.imprimir_resultados(resultado, analisis)
+    optimizador.graficar_estadisticas()
     optimizador.graficar_resultados(resultado)
+
 
 def prueba_2d() -> None:
 
@@ -61,7 +63,7 @@ def prueba_2d() -> None:
                 Paquete('P1', (2, 2), 1, 30),
                 Paquete('P2', (5, 7), 1, 30),
             ],
-            tamano_poblacion=10000,
+            tamano_poblacion=1000,
             generaciones=10,
             rotaciones_permitidas=[
                 (True,),
@@ -77,6 +79,7 @@ def prueba_2d() -> None:
         analisis = optimizador.analizar_resultados(resultado)
         optimizador.imprimir_resultados(resultado, analisis)
         optimizador.graficar_resultados(resultado)
+        optimizador.graficar_estadisticas()
 
 def prueba_3d() -> None:
 

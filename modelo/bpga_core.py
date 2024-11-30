@@ -3,7 +3,7 @@ from datos import *
 from deap import base, creator, tools, algorithms
 from abc import ABC, abstractmethod
 import numpy as np
-
+from matplotlib import pyplot as plt
 
 class OptimizadorEmpaquetadoMultiContenedor(ABC):
     def __init__(self,
@@ -28,6 +28,14 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
             tipo_paquete.nombre: self._generar_rotaciones_paquete(tipo_paquete)
             for tipo_paquete in self.tipos_paquetes
         }
+
+        self.stats = tools.Statistics(key=lambda ind: ind.fitness.values)
+
+        self.stats.register("desviación", np.std)
+        self.stats.register("promedio", np.mean)
+        self.stats.register("mínimo", np.min)
+        self.stats.register("máximo", np.max)
+        self.logbook = tools.Logbook()
 
         # Inicializar componentes DEAP
         self._configurar_deap()
@@ -119,6 +127,9 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
         mejor_aptitud = 0.0
         mejor_resultado = None
 
+
+        self.logbook.header = "gen", "desviación", "mínimo", "promedio", "máximo"
+
         for gen in range(self.generaciones):
             descendencia = algorithms.varAnd(poblacion, self.toolbox, self.prob_cruce, self.prob_mutacion)
 
@@ -130,13 +141,54 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
                     mejor_individuo = ind.copy()
                     mejor_resultado = self.obtener_posiciones_paquetes(ind)
 
+
             poblacion = self.toolbox.select(descendencia, k=len(poblacion))
-            print(f"Generación {gen + 1}: Mejor Aptitud = {mejor_aptitud:.4f}")
+            registro = self.stats.compile(poblacion)
+            self.logbook.record(gen=gen, evals=len(poblacion), **registro)
+
+            # Imprimir estadísticas de la generación
+            print(self.logbook.stream)
+
         return {
             'individuo': mejor_individuo,
             'aptitud': mejor_aptitud,
             'posiciones': mejor_resultado
         }
+
+    def graficar_estadisticas(self) -> None:
+        # Extraer generaciones y valores
+        logbook = self.logbook
+        gen = logbook.select("gen")
+        avg = logbook.select("promedio")  # Cambié 'avg' por 'promedio'
+        min_ = logbook.select("mínimo")  # Cambié 'min_' por 'mínimo'
+        max_ = logbook.select("máximo")  # Cambié 'max_' por 'máximo'
+        std = logbook.select("desviación")  # Cambié 'std' por 'desviación'
+
+        # Crear la figura con subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+        # Primer subplot: Aptitud (Promedio, Mínimo, Máximo)
+        ax1.plot(gen, avg, label="Promedio", color='blue', linewidth=3, marker='o', markersize=5, alpha=0.7)
+        ax1.plot(gen, min_, label="Mínimo", color='red', linewidth=3, marker='s', markersize=5, alpha=0.7)
+        ax1.plot(gen, max_, label="Máximo", color='green', linewidth=3, marker='^', markersize=5, alpha=0.7)
+        ax1.set_title("Evolución de la Aptitud", fontsize=16, fontweight='bold')
+        ax1.set_ylabel("Aptitud", fontsize=12)
+        ax1.legend(loc="best", fontsize=10)
+        ax1.grid(True, linestyle='--', linewidth=0.5)
+        ax1.fill_between(gen, min_, max_, color='gray', alpha=0.1)  # Añadir área sombreada
+
+        # Segundo subplot: Desviación Estándar
+        ax2.plot(gen, std, label="Desviación Estándar", color='purple', linewidth=3, marker='d', markersize=5,
+                 alpha=0.7)
+        ax2.set_title("Desviación Estándar", fontsize=16, fontweight='bold')
+        ax2.set_xlabel("Generación", fontsize=12)
+        ax2.set_ylabel("Desviación Estándar", fontsize=12)
+        ax2.legend(loc="best", fontsize=10)
+        ax2.grid(True, linestyle='--', linewidth=0.5)
+
+        plt.tight_layout()
+        plt.show()
+
 
     def analizar_resultados(self, resultado: dict) -> dict:
         """Analiza los resultados de la optimización proporcionando métricas detalladas"""
