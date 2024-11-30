@@ -80,7 +80,7 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
         self.toolbox.register("evaluate", self._evaluar_aptitud)
-        self.toolbox.register("mate", tools.cxUniform, indpb=0.5)
+        self.toolbox.register("mate", tools.cxUniform, indpb=self.prob_cruce)
         self.toolbox.register("mutate", self._mutar)
         self.toolbox.register("select", tools.selTournament, tournsize=3)
 
@@ -148,6 +148,11 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
 
             # Imprimir estadísticas de la generación
             print(self.logbook.stream)
+            desviacion = self.logbook.select("desviación")[-1]
+
+            #Parar si ya se ha encontrado la solución
+            if mejor_aptitud >= 0.999 and desviacion <= 0.001:
+                break
 
         return {
             'individuo': mejor_individuo,
@@ -188,7 +193,6 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
 
         plt.tight_layout()
         plt.show()
-
 
     def analizar_resultados(self, resultado: dict) -> dict:
         """Analiza los resultados de la optimización proporcionando métricas detalladas"""

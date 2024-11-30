@@ -239,12 +239,12 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         def create_box_faces(vertices):
             """Crea las caras de una caja 3D a partir de sus vértices"""
             faces = [
-                [vertices[0], vertices[1], vertices[2], vertices[3]],  # bottom
-                [vertices[4], vertices[5], vertices[6], vertices[7]],  # top
-                [vertices[0], vertices[1], vertices[5], vertices[4]],  # front
-                [vertices[2], vertices[3], vertices[7], vertices[6]],  # back
-                [vertices[0], vertices[3], vertices[7], vertices[4]],  # left
-                [vertices[1], vertices[2], vertices[6], vertices[5]]  # right
+                [vertices[0], vertices[1], vertices[2], vertices[3]],  # Inferior
+                [vertices[4], vertices[5], vertices[6], vertices[7]],  # Superior
+                [vertices[0], vertices[1], vertices[5], vertices[4]],  # Atraz
+                [vertices[2], vertices[3], vertices[7], vertices[6]],  # Frente
+                [vertices[0], vertices[3], vertices[7], vertices[4]],   # Izquierda
+                [vertices[1], vertices[2], vertices[6], vertices[5]]    # Derecha
             ]
             return faces
 
