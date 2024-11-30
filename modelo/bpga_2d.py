@@ -67,19 +67,22 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
                 continue
 
             tipo_paquete = self.tipos_paquetes[tipo_paquete_idx]
-
+            rotaciones = self.rotaciones_precalculadas[tipo_paquete.nombre]
             for _ in range(cantidad):
                 colocado = False
-                for x in range(0, dimensiones_contenedor[0] - tipo_paquete.dimensiones[0] + 1, paso_rejilla):
-                    for y in range(0, dimensiones_contenedor[1] - tipo_paquete.dimensiones[1] + 1, paso_rejilla):
-                        if self._puede_colocar_paquete(paquetes_colocados, tipo_paquete.dimensiones, (x, y), dimensiones_contenedor):
-                            paquetes_colocados.append(
-                                (x, y, tipo_paquete.dimensiones[0], tipo_paquete.dimensiones[1], tipo_paquete.nombre)
-                            )
-                            colocado = True
+                for rotacion in rotaciones:
+                    nombre_rot, l_rot, a_rot = rotacion
+                    for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
+                        for y in range(0, dimensiones_contenedor[1] - a_rot + 1, paso_rejilla):
+                            if self._puede_colocar_paquete(paquetes_colocados, (l_rot, a_rot), (x, y),
+                                                           dimensiones_contenedor):
+                                paquetes_colocados.append(
+                                    (x, y, l_rot, a_rot, nombre_rot)
+                                )
+                                colocado = True
+                                break
+                        if colocado:
                             break
-                    if colocado:
-                        break
 
         return paquetes_colocados, dimensiones_contenedor
 

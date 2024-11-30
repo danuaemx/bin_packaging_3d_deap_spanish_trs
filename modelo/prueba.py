@@ -56,9 +56,9 @@ def prueba_2d() -> None:
         optimizador = OptimizadorEmpaquetadoMultiContenedor2D(
             requisitos_contenedores=requisitos_contenedores,
             tipos_paquetes=[
-                Paquete('P3', (1, 1), 1, 100),
-                Paquete('P1', (2, 2), 1, 100),
-                Paquete('P2', (5, 5), 1, 100),
+                Paquete('P3', (3, 1), 1, 30),
+                Paquete('P1', (2, 2), 1, 30),
+                Paquete('P2', (5, 7), 1, 30),
             ],
             tamano_poblacion=1000,
             generaciones=10,
@@ -119,9 +119,9 @@ def prueba_3d() -> None:
 
 def main() -> None:
 
-    prueba_1d()
+    #prueba_1d()
     prueba_2d()
-    prueba_3d()
+    #prueba_3d()
 
 
 
