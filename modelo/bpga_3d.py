@@ -1,6 +1,8 @@
 from datos import *
 import numpy as np
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContenedor):
     def __init__(self,
@@ -214,5 +216,94 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
 
         return resultados
 
+    def graficar_resultados(self, resultado: dict) -> None:
+        """
+        Visualiza los resultados del empaquetado en 3D usando matplotlib.
+        Muestra cada contenedor en uso con los paquetes colocados en diferentes colores.
 
+        Args:
+            resultado (dict): Diccionario con los resultados de la optimización
+        """
+
+
+        def create_box_vertices(pos, dims):
+            """Crea los vértices de una caja 3D dada su posición y dimensiones"""
+            x, y, z = pos
+            l, w, h = dims
+            vertices = np.array([
+                [x, y, z], [x + l, y, z], [x + l, y + w, z], [x, y + w, z],
+                [x, y, z + h], [x + l, y, z + h], [x + l, y + w, z + h], [x, y + w, z + h]
+            ])
+            return vertices
+
+        def create_box_faces(vertices):
+            """Crea las caras de una caja 3D a partir de sus vértices"""
+            faces = [
+                [vertices[0], vertices[1], vertices[2], vertices[3]],  # bottom
+                [vertices[4], vertices[5], vertices[6], vertices[7]],  # top
+                [vertices[0], vertices[1], vertices[5], vertices[4]],  # front
+                [vertices[2], vertices[3], vertices[7], vertices[6]],  # back
+                [vertices[0], vertices[3], vertices[7], vertices[4]],  # left
+                [vertices[1], vertices[2], vertices[6], vertices[5]]  # right
+            ]
+            return faces
+
+        # Crear una figura para cada contenedor en uso
+        contenedores_en_uso = [cont for cont in resultado['posiciones']['contenedores'] if cont['en_uso']]
+
+        if not contenedores_en_uso:
+            print("No hay contenedores en uso para visualizar.")
+            return
+
+        # Configurar el diseño de la cuadrícula para los subplots
+        n_contenedores = len(contenedores_en_uso)
+        cols = min(3, n_contenedores)  # Máximo 3 columnas
+        rows = (n_contenedores + cols - 1) // cols
+
+        fig = plt.figure(figsize=(6 * cols, 6 * rows))
+
+        # Generar colores únicos para cada tipo de paquete
+        tipos_unicos = set()
+        for cont in contenedores_en_uso:
+            for paq in cont['paquetes']:
+                tipos_unicos.add(paq['tipo'].split('_')[0])  # Usar nombre base sin rotación
+
+        colores = plt.cm.get_cmap('tab20')(np.linspace(0, 1, len(tipos_unicos)))
+        color_map = dict(zip(tipos_unicos, colores))
+
+        for idx, contenedor in enumerate(contenedores_en_uso, 1):
+            ax = fig.add_subplot(rows, cols, idx, projection='3d')
+
+            # Dibujar el contenedor (transparente)
+            vertices_cont = create_box_vertices((0, 0, 0), contenedor['dimensiones'])
+            faces_cont = create_box_faces(vertices_cont)
+            cont_poly = Poly3DCollection(faces_cont, alpha=0.1, facecolor='gray')
+            ax.add_collection3d(cont_poly)
+
+            # Dibujar cada paquete
+            for paquete in contenedor['paquetes']:
+                vertices_paq = create_box_vertices(paquete['posicion'], paquete['dimensiones'])
+                faces_paq = create_box_faces(vertices_paq)
+                tipo_base = paquete['tipo'].split('_')[0]
+                color = color_map[tipo_base]
+                paq_poly = Poly3DCollection(faces_paq, alpha=0.6, facecolor=color)
+                ax.add_collection3d(paq_poly)
+
+            # Configurar los límites y etiquetas
+            ax.set_xlim([0, contenedor['dimensiones'][0]])
+            ax.set_ylim([0, contenedor['dimensiones'][1]])
+            ax.set_zlim([0, contenedor['dimensiones'][2]])
+            ax.set_xlabel('Largo (x)')
+            ax.set_ylabel('Ancho (y)')
+            ax.set_zlabel('Alto (z)')
+            ax.set_title(f'Contenedor {contenedor["id"]}')
+
+        # Agregar leyenda
+        legend_elements = [plt.Rectangle((0, 0), 1, 1, facecolor=color_map[tipo])
+                           for tipo in tipos_unicos]
+        fig.legend(legend_elements, list(tipos_unicos),
+                   loc='center left', bbox_to_anchor=(1, 0.5))
+
+        plt.tight_layout()
+        plt.show()
 

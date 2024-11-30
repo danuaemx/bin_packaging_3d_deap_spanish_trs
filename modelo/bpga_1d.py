@@ -1,6 +1,9 @@
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 from modelo.datos import Paquete, RequisitosContenedor
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+plt.switch_backend('Qt5Agg')
 
 class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContenedor):
 
@@ -163,3 +166,90 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
         aptitud = volumen_total_utilizado / volumen_total_contenedores * penalizacion
         return (aptitud,)
+
+    def graficar_resultados(self, resultado: dict) -> None:
+        """
+        Grafica los resultados del empaquetado usando matplotlib.
+        Muestra una visualización de cómo están distribuidos los paquetes en cada contenedor.
+        """
+
+
+        # Configurar el estilo de la gráfica
+
+
+        # Obtener contenedores en uso
+        contenedores_activos = [c for c in resultado['posiciones']['contenedores'] if c['en_uso']]
+        num_contenedores = len(contenedores_activos)
+
+        if num_contenedores == 0:
+            print("No hay contenedores activos para graficar.")
+            return
+
+        # Crear una figura con subplots para cada contenedor
+        fig, axs = plt.subplots(num_contenedores, 1, figsize=(15, 4 * num_contenedores))
+        # Convertir axs a array si solo hay un contenedor
+        if num_contenedores == 1:
+            axs = [axs]
+
+        # Colores para diferentes tipos de paquetes
+        colores = plt.cm.Set3(np.linspace(0, 1, len(self.tipos_paquetes)))
+        color_map = {tipo.nombre: color for tipo, color in zip(self.tipos_paquetes, colores)}
+
+        # Graficar cada contenedor
+        for idx, contenedor in enumerate(contenedores_activos):
+            ax = axs[idx]
+            longitud_contenedor = contenedor['dimensiones'][0]
+
+            # Configurar el área de visualización
+            ax.set_xlim(-longitud_contenedor * 0.05, longitud_contenedor * 1.05)
+            ax.set_ylim(-0.5, 1.5)
+
+            # Dibujar el contenedor
+            contenedor_rect = patches.Rectangle(
+                (0, 0), longitud_contenedor, 1,
+                linewidth=2, edgecolor='black', facecolor='none'
+            )
+            ax.add_patch(contenedor_rect)
+
+            # Dibujar cada paquete
+            for paquete in contenedor['paquetes']:
+                x = paquete['posicion'][0]
+                longitud = paquete['dimensiones'][0]
+                tipo_base = paquete['tipo'].split('_')[0]  # Obtener tipo base sin rotación
+
+                # Crear y añadir el rectángulo del paquete
+                paquete_rect = patches.Rectangle(
+                    (x, 0), longitud, 1,
+                    facecolor=color_map[tipo_base],
+                    edgecolor='black',
+                    alpha=0.7,
+                    linewidth=1
+                )
+                ax.add_patch(paquete_rect)
+
+                # Añadir texto con el tipo de paquete si hay espacio suficiente
+                if longitud > longitud_contenedor * 0.05:
+                    ax.text(x + longitud / 2, 0.5, tipo_base,
+                            ha='center', va='center')
+
+            # Configurar título y etiquetas
+            ax.set_title(
+                f'Contenedor {contenedor["id"]} - Utilización: {self.analizar_resultados(resultado)["metricas_por_contenedor"][idx]["porcentaje_utilizacion"]:.1f}%')
+            ax.set_xlabel('Longitud')
+            ax.set_yticks([])
+
+        # Añadir leyenda global
+        legend_elements = [patches.Patch(facecolor=color_map[tipo.nombre],
+                                         edgecolor='black',
+                                         alpha=0.7,
+                                         label=f'{tipo.nombre}')
+                           for tipo in self.tipos_paquetes]
+        fig.legend(handles=legend_elements,
+                   loc='center right',
+                   bbox_to_anchor=(0.98, 0.5))
+
+        # Ajustar espaciado
+        plt.tight_layout(rect=[0, 0, 0.9, 1])
+
+        # Mostrar la gráfica
+        plt.show()

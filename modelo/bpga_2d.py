@@ -1,6 +1,9 @@
 from datos import *
 import numpy as np
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+plt.switch_backend('Qt5Agg')
 
 class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContenedor):
     def __init__(self,
@@ -181,3 +184,79 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
             resultados['contenedores'].append(contenedor_info)
 
         return resultados
+
+    def graficar_resultados(self, resultado: dict) -> None:
+        """
+        Grafica la disposición de los paquetes en cada contenedor usando matplotlib.
+        Crea una figura separada para cada contenedor en uso.
+
+        Args:
+            resultado (dict): Diccionario con los resultados de la optimización
+        """
+        # Crear un mapa de colores para cada tipo de paquete
+        tipos_unicos = {paquete.nombre for paquete in self.tipos_paquetes}
+        colores = plt.cm.get_cmap('tab20')(np.linspace(0, 1, len(tipos_unicos)))
+        mapa_colores = dict(zip(tipos_unicos, colores))
+
+        for contenedor in resultado['posiciones']['contenedores']:
+            if not contenedor['en_uso'] or not contenedor['paquetes']:
+                continue
+
+            # Crear una nueva figura para cada contenedor
+            fig, ax = plt.subplots(figsize=(12, 8))
+
+            # Configurar los límites del gráfico según las dimensiones del contenedor
+            ancho_contenedor, alto_contenedor = contenedor['dimensiones']
+            ax.set_xlim(-1, ancho_contenedor + 1)
+            ax.set_ylim(-1, alto_contenedor + 1)
+
+            # Dibujar el contenedor
+            rect_contenedor = patches.Rectangle((0, 0), ancho_contenedor, alto_contenedor,
+                                                fill=False, color='black', linewidth=2)
+            ax.add_patch(rect_contenedor)
+
+            # Dibujar cada paquete
+            for paquete in contenedor['paquetes']:
+                # Obtener el tipo base del paquete (sin la rotación)
+                tipo_base = paquete['tipo'].split('_')[0]
+                color = mapa_colores[tipo_base]
+
+                x, y = paquete['posicion']
+                ancho, alto = paquete['dimensiones']
+
+                # Crear y añadir el rectángulo del paquete
+                rect = patches.Rectangle((x, y), ancho, alto,
+                                         fill=True, facecolor=color, alpha=0.5,
+                                         edgecolor='black', linewidth=1)
+                ax.add_patch(rect)
+
+                # Añadir texto con el tipo de paquete
+                ax.text(x + ancho / 2, y + alto / 2, tipo_base,
+                        horizontalalignment='center',
+                        verticalalignment='center')
+
+            # Configurar el título y etiquetas
+            ax.set_title(f'Contenedor {contenedor["id"]} - {ancho_contenedor}x{alto_contenedor}')
+            ax.set_xlabel('Ancho')
+            ax.set_ylabel('Alto')
+
+            # Ajustar la escala para que sea igual en ambos ejes
+            ax.set_aspect('equal')
+
+            # Añadir una cuadrícula
+            ax.grid(True, linestyle='--', alpha=0.7)
+
+            # Crear leyenda
+            legend_elements = [patches.Patch(facecolor=mapa_colores[tipo],
+                                             alpha=0.5,
+                                             edgecolor='black',
+                                             label=tipo)
+                               for tipo in tipos_unicos]
+            ax.legend(handles=legend_elements, title="Tipos de Paquetes",
+                      loc='center left', bbox_to_anchor=(1, 0.5))
+
+            # Ajustar el layout para que no se solapen los elementos
+            plt.tight_layout()
+
+        # Mostrar todas las figuras
+        plt.show()

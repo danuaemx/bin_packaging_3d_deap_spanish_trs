@@ -1,9 +1,8 @@
 import random
 from datos import *
 from deap import base, creator, tools, algorithms
-import numpy as np
-
 from abc import ABC, abstractmethod
+import numpy as np
 
 
 class OptimizadorEmpaquetadoMultiContenedor(ABC):
@@ -275,4 +274,8 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
 
     @abstractmethod
     def obtener_posiciones_paquetes(self, individuo) -> dict:
+        pass
+
+    @abstractmethod
+    def graficar_resultados(self, resultado: dict) -> None:
         pass
