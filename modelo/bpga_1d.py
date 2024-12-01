@@ -3,7 +3,7 @@ from modelo.datos import Paquete, RequisitosContenedor
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-plt.switch_backend('Qt5Agg')
+
 
 class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContenedor):
 

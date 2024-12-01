@@ -4,6 +4,7 @@ from deap import base, creator, tools, algorithms
 from abc import ABC, abstractmethod
 import numpy as np
 from matplotlib import pyplot as plt
+plt.switch_backend('Qt5Agg')
 
 class OptimizadorEmpaquetadoMultiContenedor(ABC):
     def __init__(self,

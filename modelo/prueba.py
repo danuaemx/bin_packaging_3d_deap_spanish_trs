@@ -63,7 +63,6 @@ def prueba_1d() -> None:
     optimizador.graficar_estadisticas()
     optimizador.graficar_resultados(resultado)
 
-
 def prueba_2d() -> None:
 
         requisitos_contenedores = [
@@ -188,16 +187,11 @@ def prueba_3d() -> None:
     optimizador.graficar_resultados(resultado)
     optimizador.graficar_estadisticas()
 
-
-
 def main() -> None:
 
     prueba_1d()
     prueba_2d()
     prueba_3d()
-
-
-
 
 if __name__ == "__main__":
     main()

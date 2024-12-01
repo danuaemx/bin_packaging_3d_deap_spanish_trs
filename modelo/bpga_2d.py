@@ -3,7 +3,7 @@ import numpy as np
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-plt.switch_backend('Qt5Agg')
+
 
 class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContenedor):
     def __init__(self,
