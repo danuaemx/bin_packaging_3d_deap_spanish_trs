@@ -15,14 +15,7 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
                  generaciones: int = 55,
                  prob_cruce: float = 0.618,
                  prob_mutacion: float = 0.021) -> None:
-
-        # Eliminar clases creadas previamente
-        if hasattr(creator, 'FitnessMax'):
-            delattr(creator, 'FitnessMax')
-        if hasattr(creator, 'Individual'):
-            delattr(creator, 'Individual')
-
-        self.num_contenedores = len(requisitos_contenedores)
+  
         self.requisitos_contenedores = requisitos_contenedores
         self.tipos_paquetes = tipos_paquetes
         self.tamano_poblacion = tamano_poblacion
@@ -30,21 +23,27 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
         self.prob_cruce = prob_cruce
         self.prob_mutacion = prob_mutacion
         self.rotaciones_permitidas = rotaciones_permitidas
-        self.num_tipos_paquetes = len(tipos_paquetes)
-        #Usar indices para rotaciones
+        self._configurar()
+
+    def _configurar(self):
+        
+        # Eliminar clases creadas previamente
+        if hasattr(creator, 'FitnessMax'):
+            delattr(creator, 'FitnessMax')
+        if hasattr(creator, 'Individual'):
+            delattr(creator, 'Individual')
+        self.num_contenedores = len(self.requisitos_contenedores)
+        self.num_tipos_paquetes = len(self.tipos_paquetes)
         self.rotaciones_precalculadas = {
-            tipo_paquete.nombre: self._generar_rotaciones_paquete(tipo_paquete,indice)
-            for indice,tipo_paquete in enumerate(tipos_paquetes)
+            tipo_paquete.nombre: self._generar_rotaciones_paquete(tipo_paquete, indice)
+            for indice, tipo_paquete in enumerate(self.tipos_paquetes)
         }
-
         self.stats = tools.Statistics(key=lambda ind: ind.fitness.values)
-
         self.stats.register("desviación", np.std)
         self.stats.register("promedio", np.mean)
         self.stats.register("mínimo", np.min)
         self.stats.register("máximo", np.max)
         self.logbook = tools.Logbook()
-
         # Inicializar componentes DEAP
         self._configurar_deap()
 
@@ -57,6 +56,17 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
 
         # Registrar generadores para cada contenedor
         atributos = []
+        self.registrar_attrs(atributos)
+
+        self.toolbox.register("individual", tools.initCycle, creator.Individual, atributos, n=1)
+        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
+
+        self.toolbox.register("evaluate", self._evaluar_aptitud)
+        self.toolbox.register("mate", tools.cxUniform, indpb=self.prob_cruce)
+        self.toolbox.register("mutate", self._mutar)
+        self.toolbox.register("select", tools.selTournament, tournsize=3)
+
+    def registrar_attrs(self, atributos) -> None:
         for i, requisitos in enumerate(self.requisitos_contenedores):
             # Indicador binario de uso del contenedor - solo si es opcional
             if requisitos.uso_opcional:
@@ -83,14 +93,6 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
                     tipo_paquete.cantidad_maxima  # Máximo por contenedor
                 )
                 atributos.append(getattr(self.toolbox, f"attr_cantidad_{i}_{j}"))
-
-        self.toolbox.register("individual", tools.initCycle, creator.Individual, atributos, n=1)
-        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
-
-        self.toolbox.register("evaluate", self._evaluar_aptitud)
-        self.toolbox.register("mate", tools.cxUniform, indpb=self.prob_cruce)
-        self.toolbox.register("mutate", self._mutar)
-        self.toolbox.register("select", tools.selTournament, tournsize=3)
 
     @abstractmethod
     def _generar_rotaciones_paquete(self, paquete: Paquete, indice) -> list[tuple]:

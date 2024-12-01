@@ -50,7 +50,7 @@ def prueba_1d() -> None:
             Paquete('P11', (17,), 2, 4),
             Paquete('P11', (19,), 1, 4),
         ],
-        tamano_poblacion=10000,
+        tamano_poblacion=1000,
         generaciones=20
     )
 
