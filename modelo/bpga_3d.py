@@ -4,7 +4,6 @@ from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-
 def vertices_caja(pos, dims):
     """Crea los vértices de una caja 3D dada su posición y dimensiones"""
     x, y, z = pos
@@ -61,6 +60,29 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
 
         return rotaciones_tipo
 
+    def _first_fit(self, colocado, dimensiones_contenedor, paquetes_colocados, paso_rejilla, rotaciones):
+        for rotacion in rotaciones:
+            nombre_rot, l_rot, a_rot, h_rot = rotacion
+
+            for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
+                for y in range(0, dimensiones_contenedor[1] - a_rot + 1, paso_rejilla):
+                    for z in range(0, dimensiones_contenedor[2] - h_rot + 1, paso_rejilla):
+                        if self._puede_colocar_paquete(paquetes_colocados,
+                                                       (nombre_rot, l_rot, a_rot, h_rot), (x, y, z),
+                                                       dimensiones_contenedor):
+                            paquetes_colocados.append(
+                                (x, y, z, l_rot, a_rot, h_rot, nombre_rot)
+                            )
+                            colocado = True
+                            break
+                    if colocado:
+                        break
+                if colocado:
+                    break
+            if colocado:
+                break
+        return colocado
+
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
         """Verifica si un paquete puede ser colocado en la posición dada"""
         x, y, z = posicion
@@ -78,53 +100,6 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
                     z + h <= pz or pz + ph <= z):
                 return False
         return True
-
-    def _colocar_paquetes_en_contenedor(self, genes_contenedor, indice_contenedor) -> tuple[list, tuple]:
-        """Coloca paquetes en un contenedor específico con múltiples rotaciones"""
-        dimensiones_contenedor = self.requisitos_contenedores[indice_contenedor].dimensiones
-
-        paquetes_colocados = []
-        paso_rejilla = 1
-
-        for i in range(1, len(genes_contenedor)):
-            tipo_paquete_idx = i - 1
-            cantidad = genes_contenedor[i]
-
-            # Si la cantidad es 0, continuar con el siguiente tipo
-            if cantidad == 0:
-                continue
-
-            tipo_paquete = self.tipos_paquetes[tipo_paquete_idx]
-
-            # Generar todas las posibles rotaciones para este tipo de paquete
-            rotaciones = self.rotaciones_precalculadas[tipo_paquete.nombre]
-
-            for _ in range(cantidad):
-                colocado = False
-                for rotacion in rotaciones:
-                    nombre_rot, l_rot, a_rot, h_rot = rotacion
-
-                    for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
-                        for y in range(0, dimensiones_contenedor[1] - a_rot + 1, paso_rejilla):
-                            for z in range(0, dimensiones_contenedor[2] - h_rot + 1, paso_rejilla):
-                                if self._puede_colocar_paquete(paquetes_colocados,
-                                                               (nombre_rot, l_rot, a_rot, h_rot), (x, y, z),
-                                                               dimensiones_contenedor):
-                                    paquetes_colocados.append(
-                                        (x, y, z, l_rot, a_rot, h_rot, nombre_rot)
-                                    )
-                                    colocado = True
-                                    break
-                            if colocado:
-                                break
-                        if colocado:
-                            break
-                    if colocado:
-                        break
-                if not colocado:
-                    break
-
-        return paquetes_colocados, dimensiones_contenedor
 
     def _conteo_paquetes(self, cantidad_total, dimensiones_contenedor, paquetes_colocados):
         for paq in paquetes_colocados:
@@ -212,4 +187,3 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
 
         plt.tight_layout()
         plt.show()
-

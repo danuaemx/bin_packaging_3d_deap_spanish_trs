@@ -50,8 +50,8 @@ def prueba_1d() -> None:
             Paquete('P11', (17,), 2, 4),
             Paquete('P11', (19,), 1, 4),
         ],
-        tamano_poblacion=1000,
-        generaciones=40
+        tamano_poblacion=10000,
+        generaciones=20
     )
 
     # Ejecutar la optimización
@@ -107,7 +107,7 @@ def prueba_2d() -> None:
                 Paquete('P7', (4, 4), 2, 30),  # Nuevo paquete
                 Paquete('P8', (9, 1), 3, 30),  # Nuevo paquete
             ],
-            tamano_poblacion=100,
+            tamano_poblacion=1000,
             generaciones=20,
             rotaciones_permitidas=[
                 (True,),

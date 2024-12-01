@@ -30,6 +30,24 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
 
         return rotaciones_tipo
 
+    def _first_fit(self, colocado, dimensiones_contenedor, paquetes_colocados, paso_rejilla, rotaciones):
+        for rotacion in rotaciones:
+            nombre_rot, l_rot, a_rot = rotacion
+            for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
+                for y in range(0, dimensiones_contenedor[1] - a_rot + 1, paso_rejilla):
+                    if self._puede_colocar_paquete(paquetes_colocados, (l_rot, a_rot), (x, y),
+                                                   dimensiones_contenedor):
+                        paquetes_colocados.append(
+                            (x, y, l_rot, a_rot, nombre_rot)
+                        )
+                        colocado = True
+                        break
+                if colocado:
+                    break
+            if colocado:
+                break
+        return colocado
+
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
         """Verifica si un paquete puede ser colocado en la posición dada"""
         x, y = posicion
@@ -45,39 +63,6 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
                     y + a <= py or py + pa <= y):
                 return False
         return True
-
-    def _colocar_paquetes_en_contenedor(self, genes_contenedor, indice_contenedor) -> tuple[list, tuple]:
-        """Colocar paquetes en el contenedor usando heurística first-fit"""
-        paquetes_colocados = []
-        dimensiones_contenedor = self.requisitos_contenedores[indice_contenedor].dimensiones
-        paso_rejilla = 1
-
-        for i in range(1, len(genes_contenedor)):
-            tipo_paquete_idx = i - 1
-            cantidad = genes_contenedor[i]
-
-            if cantidad == 0:
-                continue
-
-            tipo_paquete = self.tipos_paquetes[tipo_paquete_idx]
-            rotaciones = self.rotaciones_precalculadas[tipo_paquete.nombre]
-            for _ in range(cantidad):
-                colocado = False
-                for rotacion in rotaciones:
-                    nombre_rot, l_rot, a_rot = rotacion
-                    for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
-                        for y in range(0, dimensiones_contenedor[1] - a_rot + 1, paso_rejilla):
-                            if self._puede_colocar_paquete(paquetes_colocados, (l_rot, a_rot), (x, y),
-                                                           dimensiones_contenedor):
-                                paquetes_colocados.append(
-                                    (x, y, l_rot, a_rot, nombre_rot)
-                                )
-                                colocado = True
-                                break
-                        if colocado:
-                            break
-
-        return paquetes_colocados, dimensiones_contenedor
 
     def _conteo_paquetes(self, cantidad_total, dimensiones_contenedor, paquetes_colocados):
         for paq in paquetes_colocados:

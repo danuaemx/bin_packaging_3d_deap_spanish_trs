@@ -3,7 +3,7 @@ from modelo.datos import Paquete, RequisitosContenedor
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+plt.switch_backend('Qt5Agg')
 
 class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContenedor):
 
@@ -17,6 +17,13 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
         super().__init__(requisitos_contenedores, tipos_paquetes, rotaciones_permitidas, tamano_poblacion, generaciones,
                          prob_cruce, prob_mutacion)
+
+    def _generar_rotaciones_paquete(self, paquete: Paquete, indice: int) -> list[tuple]:
+        """Generar todas las posibles rotaciones de un paquete"""
+        nombre = paquete.nombre
+        x = paquete.dimensiones[0]
+        rotaciones_tipo = [(x, nombre), ]
+        return rotaciones_tipo
 
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
         """Determinar si un nuevo paquete puede ser colocado en una posición dada"""
@@ -33,48 +40,17 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
         return True
 
-    def _contenedor_info(self, contenedor_info, paquetes_colocados):
-        contenedor_info['paquetes'] = [
-            {
-                'tipo': paq[2],
-                'posicion': (paq[0],),
-                'dimensiones': (paq[1],)
-            } for paq in paquetes_colocados
-        ]
-
-    def _generar_rotaciones_paquete(self, paquete: Paquete,indice:int) -> list[tuple]:
-        """Generar todas las posibles rotaciones de un paquete"""
-        nombre = paquete.nombre
-        x= paquete.dimensiones[0]
-        rotaciones_tipo = [(x, nombre),]
-        return rotaciones_tipo
-
-    def _colocar_paquetes_en_contenedor(self, genes_contenedor, indice_contenedor) -> tuple[list, tuple]:
-        """Colocar paquetes en un contenedor usando heurística first-fit"""
-        paquetes_colocados = []
-        dimensiones_contenedor = self.requisitos_contenedores[indice_contenedor].dimensiones
-        paso_rejilla = 1
-
-        for i in range(1, len(genes_contenedor)):
-            tipo_paquete_idx = i - 1
-            cantidad = genes_contenedor[i]
-
-            if cantidad == 0:
-                continue
-
-            tipo_paquete = self.tipos_paquetes[tipo_paquete_idx]
-            for _ in range(cantidad):
-                colocado = False
-                for x in range(0, dimensiones_contenedor[0] - tipo_paquete.dimensiones[0] + 1, paso_rejilla):
-                    if self._puede_colocar_paquete(paquetes_colocados, tipo_paquete.dimensiones, (x,), dimensiones_contenedor):
-                        paquetes_colocados.append((x, tipo_paquete.dimensiones[0], tipo_paquete.nombre))
-                        colocado = True
-                        break
-                if not colocado:
-                    return paquetes_colocados, dimensiones_contenedor
-
-
-        return paquetes_colocados, dimensiones_contenedor
+    def _first_fit(self, colocado, dimensiones_contenedor, paquetes_colocados, paso_rejilla, rotaciones):
+        for rotacion in rotaciones:
+            l_rot, nombre_rot = rotacion
+            for x in range(0, dimensiones_contenedor[0] - l_rot + 1, paso_rejilla):
+                if self._puede_colocar_paquete(paquetes_colocados, (l_rot,), (x,), dimensiones_contenedor):
+                    paquetes_colocados.append((x, l_rot, nombre_rot))
+                    colocado = True
+                    break
+            if colocado:
+                break
+        return colocado
 
     def _conteo_paquetes(self, cantidad_total, dimensiones_contenedor, paquetes_colocados):
         for paq in paquetes_colocados:
@@ -85,6 +61,15 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
         volumen_contenedor = np.prod(dimensiones_contenedor)
         volumen_utilizado = sum(paq[1] for paq in paquetes_colocados)
         return volumen_contenedor, volumen_utilizado
+
+    def _contenedor_info(self, contenedor_info, paquetes_colocados):
+        contenedor_info['paquetes'] = [
+            {
+                'tipo': paq[2],
+                'posicion': (paq[0],),
+                'dimensiones': (paq[1],)
+            } for paq in paquetes_colocados
+        ]
 
     def graficar_resultados(self, resultado: dict) -> None:
         """
