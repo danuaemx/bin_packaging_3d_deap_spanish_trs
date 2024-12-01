@@ -121,26 +121,6 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         volumen_total_contenedores = 0
         contenedores_usados = 0
 
-        # Verificar restricciones globales de cantidad máxima
-        for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
-            usar_contenedor = individuo[inicio]
-
-            if usar_contenedor == 1:
-                # Sumar las cantidades de cada tipo de paquete en este contenedor
-                for j, tipo_paquete in enumerate(self.tipos_paquetes):
-                    idx_cantidad = inicio + 1 + j
-                    cantidad = individuo[idx_cantidad]
-                    cantidad_total[tipo_paquete.nombre] += cantidad
-
-        # Verificar si se exceden los máximos globales
-        for tipo_paquete in self.tipos_paquetes:
-            if cantidad_total[tipo_paquete.nombre] > tipo_paquete.cantidad_maxima:
-                return (0.0,)  # Penalización máxima si se excede el límite global
-
-        # Reiniciar contadores para el cálculo normal de aptitud
-        cantidad_total = {tipo.nombre: 0 for tipo in self.tipos_paquetes}
-
         # Procesar cada contenedor
         for i in range(self.num_contenedores):
             inicio = i * genes_por_contenedor
@@ -172,7 +152,9 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         penalizacion = 1.0
         for tipo_paquete in self.tipos_paquetes:
             if cantidad_total[tipo_paquete.nombre] < tipo_paquete.cantidad_minima:
-                penalizacion *= 0.4
+                penalizacion *= 0.6
+            if cantidad_total[tipo_paquete.nombre] > tipo_paquete.cantidad_maxima:
+                penalizacion *= 0.6
 
         # La aptitud es el porcentaje de volumen utilizado multiplicado por la penalización
         aptitud = (volumen_total_utilizado / volumen_total_contenedores) * penalizacion

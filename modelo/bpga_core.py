@@ -15,6 +15,11 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
                  prob_cruce: float = 0.618,
                  prob_mutacion: float = 0.021) -> None:
 
+        if hasattr(creator, 'FitnessMax'):
+            delattr(creator, 'FitnessMax')
+        if hasattr(creator, 'Individual'):
+            delattr(creator, 'Individual')
+
         self.num_contenedores = len(requisitos_contenedores)
         self.requisitos_contenedores = requisitos_contenedores
         self.tipos_paquetes = tipos_paquetes
@@ -87,8 +92,8 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
     def _mutar(self, individuo):
         """Operador de mutación para múltiples contenedores"""
         # Aplica mutación severa al 21% de los individuos
-        if random.random() < self.prob_mutacion * 10:
-            self.prob_mutacion *= 10
+        if random.random() < 0.21:
+            self.prob_mutacion = 0.21
 
         genes_por_contenedor = 1 + self.num_tipos_paquetes
 
@@ -134,12 +139,14 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
             descendencia = algorithms.varAnd(poblacion, self.toolbox, self.prob_cruce, self.prob_mutacion)
 
             aptitudes = map(self.toolbox.evaluate, descendencia)
+
             for aptitud, ind in zip(aptitudes, descendencia):
                 ind.fitness.values = aptitud
                 if aptitud[0] > mejor_aptitud:
                     mejor_aptitud = aptitud[0]
                     mejor_individuo = ind.copy()
                     mejor_resultado = self.obtener_posiciones_paquetes(ind)
+
 
 
             poblacion = self.toolbox.select(descendencia, k=len(poblacion))
@@ -151,7 +158,7 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
             desviacion = self.logbook.select("desviación")[-1]
 
             #Parar si ya se ha encontrado la solución
-            if mejor_aptitud >= 0.999 and desviacion <= 0.001:
+            if mejor_aptitud >= 0.97 or desviacion <= 0.001:
                 break
 
         return {
