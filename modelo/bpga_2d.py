@@ -18,27 +18,17 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
         super().__init__(requisitos_contenedores, tipos_paquetes, rotaciones_permitidas, tamano_poblacion, generaciones,
                          prob_cruce, prob_mutacion)
 
-    def _generar_rotaciones_paquete(self, paquete: Paquete) -> list[tuple]:
+    def _generar_rotaciones_paquete(self, paquete: Paquete, indice : int) -> list[tuple]:
         """Genera todas las rotaciones únicas permitidas para un paquete"""
         nombre = paquete.nombre
         x, y = paquete.dimensiones
-        rotaciones_tipo = set()
+        rotaciones_tipo = [(nombre, x, y),]
 
-        for permisos in self.rotaciones_permitidas:
+        permiso = self.rotaciones_permitidas[indice][0]
+        if permiso and x != y:
+            rotaciones_tipo.append((f"{nombre}_rxy", y, x))
 
-            current_rotations = []
-
-
-            if permisos[0] and x != y:
-                current_rotations.append((f"{nombre}_rxy", y, x))
-
-
-            current_rotations.append((nombre, x, y))
-
-
-            rotaciones_tipo.update(current_rotations)
-
-        return list(rotaciones_tipo)
+        return rotaciones_tipo
 
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
         """Verifica si un paquete puede ser colocado en la posición dada"""
@@ -89,85 +79,24 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
 
         return paquetes_colocados, dimensiones_contenedor
 
-    def _evaluar_aptitud(self, individuo) -> tuple[float]:
-        """Evaluar la aptitud de un individuo"""
-        genes_por_contenedor = 1 + self.num_tipos_paquetes
-        cantidad_total = {tipo.nombre: 0 for tipo in self.tipos_paquetes}
-        volumen_total_utilizado = 0
-        volumen_total_contenedores = 0
-        contenedores_usados = 0
-        penalizacion = 1.0
+    def _conteo_paquetes(self, cantidad_total, dimensiones_contenedor, paquetes_colocados):
+        for paq in paquetes_colocados:
+            # Extraer el nombre original del paquete sin la rotación
+            nombre_original = paq[4].split('_')[0]
+            cantidad_total[nombre_original] += 1
+        # Calcular volúmenes
+        volumen_contenedor = np.prod(dimensiones_contenedor)
+        volumen_utilizado = sum(paq[2] * paq[3] for paq in paquetes_colocados)
+        return volumen_contenedor, volumen_utilizado
 
-        for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
-            usar_contenedor = individuo[inicio]
-
-            if usar_contenedor == 1:
-                contenedores_usados += 1
-                genes_contenedor = individuo[inicio:inicio + genes_por_contenedor]
-                paquetes_colocados, dimensiones_contenedor = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
-
-                # Actualizar conteo total de paquetes realmente colocados
-                for paq in paquetes_colocados:
-                    # Extraer el nombre original del paquete sin la rotación
-                    nombre_original = paq[4].split('_')[0]
-                    cantidad_total[nombre_original] += 1
-
-                # Calcular volúmenes
-                volumen_contenedor = np.prod(dimensiones_contenedor)
-                volumen_utilizado = sum(paq[2]*paq[3] for paq in paquetes_colocados)
-
-                volumen_total_contenedores += volumen_contenedor
-                volumen_total_utilizado += volumen_utilizado
-
-        # Si no hay contenedores usados, retornar aptitud mínima
-        if contenedores_usados == 0:
-            return (0.0,)
-
-        # Verificar restricciones de cantidad mínima
-
-        for tipo_paquete in self.tipos_paquetes:
-            if cantidad_total[tipo_paquete.nombre] < tipo_paquete.cantidad_minima:
-                penalizacion *= 0.6
-            if cantidad_total[tipo_paquete.nombre] > tipo_paquete.cantidad_maxima:
-                penalizacion *= 0.6
-
-        aptitud = volumen_total_utilizado / volumen_total_contenedores * penalizacion
-        return (aptitud,)
-
-    def obtener_posiciones_paquetes(self, individuo) -> dict:
-        """Obtener las posiciones de los paquetes en un individuo"""
-        genes_por_contenedor = 1 + self.num_tipos_paquetes
-        resultados = {
-            'contenedores': []
-        }
-        for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
-            usar_contenedor = individuo[inicio]
-
-            dimensiones = self.requisitos_contenedores[i].dimensiones
-
-            contenedor_info = {
-                'id': i + 1,
-                'en_uso': bool(usar_contenedor),
-                'dimensiones': dimensiones,
-                'paquetes': []
-            }
-            if usar_contenedor:
-                genes_contenedor = individuo[inicio:inicio + genes_por_contenedor]
-                paquetes_colocados, _ = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
-
-                contenedor_info['paquetes'] = [
-                    {
-                        'tipo': paq[4],
-                        'posicion': (paq[0],paq[1]),
-                        'dimensiones': (paq[2],paq[3])
-                    } for paq in paquetes_colocados
-                ]
-
-            resultados['contenedores'].append(contenedor_info)
-
-        return resultados
+    def _contenedor_info(self, contenedor_info, paquetes_colocados):
+        contenedor_info['paquetes'] = [
+            {
+                'tipo': paq[4],
+                'posicion': (paq[0], paq[1]),
+                'dimensiones': (paq[2], paq[3])
+            } for paq in paquetes_colocados
+        ]
 
     def graficar_resultados(self, resultado: dict) -> None:
         """

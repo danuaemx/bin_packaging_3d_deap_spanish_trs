@@ -4,6 +4,29 @@ from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+
+def vertices_caja(pos, dims):
+    """Crea los vértices de una caja 3D dada su posición y dimensiones"""
+    x, y, z = pos
+    l, w, h = dims
+    vertices = np.array([
+        [x, y, z], [x + l, y, z], [x + l, y + w, z], [x, y + w, z],
+        [x, y, z + h], [x + l, y, z + h], [x + l, y + w, z + h], [x, y + w, z + h]
+    ])
+    return vertices
+
+def caras_caja(vertices):
+    """Crea las caras de una caja 3D a partir de sus vértices"""
+    faces = [
+        [vertices[0], vertices[1], vertices[2], vertices[3]],  # Inferior
+        [vertices[4], vertices[5], vertices[6], vertices[7]],  # Superior
+        [vertices[0], vertices[1], vertices[5], vertices[4]],  # Atraz
+        [vertices[2], vertices[3], vertices[7], vertices[6]],  # Frente
+        [vertices[0], vertices[3], vertices[7], vertices[4]],  # Izquierda
+        [vertices[1], vertices[2], vertices[6], vertices[5]]  # Derecha
+    ]
+    return faces
+
 class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContenedor):
     def __init__(self,
                  requisitos_contenedores: list[RequisitosContenedor],
@@ -17,36 +40,26 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         super().__init__(requisitos_contenedores, tipos_paquetes, rotaciones_permitidas, tamano_poblacion, generaciones,
                          prob_cruce, prob_mutacion)
 
-    def _generar_rotaciones_paquete(self, paquete: Paquete) -> list[tuple]:
+    def _generar_rotaciones_paquete(self, paquete: Paquete, indice : int) -> list[tuple]:
         """Genera todas las rotaciones únicas permitidas para un paquete"""
         nombre = paquete.nombre
         x, y, z = paquete.dimensiones
-        rotaciones_tipo = set()  # Use a set to automatically eliminate duplicates
+        rotaciones_tipo = [(nombre, x, y, z),]
 
-        for permisos in self.rotaciones_permitidas:
-            # Reset initial rotations each iteration
-            current_rotations = []
+        permisos = self.rotaciones_permitidas[indice]
 
-            # Agregar rotaciones solo si están permitidas y tienen sentido
-            if permisos[0] and x != y:
-                current_rotations.append((f"{nombre}_rxy", y, x, z))
-            if permisos[1] and x != z:
-                current_rotations.append((f"{nombre}_rxz", z, y, x))
-            if permisos[2] and y != z:
-                current_rotations.append((f"{nombre}_ryz", x, z, y))
-            if permisos[3] and not (x == y == z):
-                current_rotations.append((f"{nombre}_rxy_rxz", z, x, y))
-            if permisos[4] and not (x == y == z):
-                current_rotations.append((f"{nombre}_rxy_ryz", y, z, x))
+        if permisos[0] and x != y:
+            rotaciones_tipo.append((f"{nombre}_rxy", y, x, z))
+        if permisos[1] and x != z:
+            rotaciones_tipo.append((f"{nombre}_rxz", z, y, x))
+        if permisos[2] and y != z:
+            rotaciones_tipo.append((f"{nombre}_ryz", x, z, y))
+        if permisos[3] and not (x == y == z):
+            rotaciones_tipo.append((f"{nombre}_rxy_rxz", z, x, y))
+        if permisos[4] and not (x == y == z):
+            rotaciones_tipo.append((f"{nombre}_rxy_ryz", y, z, x))
 
-            # Siempre incluir la orientación original
-            current_rotations.append((nombre, x, y, z))
-
-            # Add to set to eliminate duplicates
-            rotaciones_tipo.update(current_rotations)
-
-        # Convert back to list and return unique rotations
-        return list(rotaciones_tipo)
+        return rotaciones_tipo
 
     def _puede_colocar_paquete(self, paquetes_existentes, nuevo_paquete, posicion, dimensiones_contenedor) -> bool:
         """Verifica si un paquete puede ser colocado en la posición dada"""
@@ -113,90 +126,24 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
 
         return paquetes_colocados, dimensiones_contenedor
 
-    def _evaluar_aptitud(self, individuo) -> tuple[float]:
-        """Evalúa la aptitud de un individuo con múltiples contenedores"""
-        genes_por_contenedor = 1 + self.num_tipos_paquetes
-        cantidad_total = {tipo.nombre: 0 for tipo in self.tipos_paquetes}
-        volumen_total_utilizado = 0
-        volumen_total_contenedores = 0
-        contenedores_usados = 0
+    def _conteo_paquetes(self, cantidad_total, dimensiones_contenedor, paquetes_colocados):
+        for paq in paquetes_colocados:
+            # Extraer el nombre original del paquete sin la rotación
+            nombre_original = paq[6].split('_')[0]
+            cantidad_total[nombre_original] += 1
+        # Calcular volúmenes
+        volumen_contenedor = np.prod(dimensiones_contenedor)
+        volumen_utilizado = sum(paq[3] * paq[4] * paq[5] for paq in paquetes_colocados)
+        return volumen_contenedor, volumen_utilizado
 
-        # Procesar cada contenedor
-        for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
-            usar_contenedor = individuo[inicio]
-
-            if usar_contenedor == 1:
-                contenedores_usados += 1
-                genes_contenedor = individuo[inicio:inicio + genes_por_contenedor]
-                paquetes_colocados, dimensiones_contenedor = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
-
-                # Actualizar conteo total de paquetes realmente colocados
-                for paq in paquetes_colocados:
-                    # Extraer el nombre original del paquete sin la rotación
-                    nombre_original = paq[6].split('_')[0]
-                    cantidad_total[nombre_original] += 1
-
-                # Calcular volúmenes
-                volumen_contenedor = np.prod(dimensiones_contenedor)
-                volumen_utilizado = sum(paq[3] * paq[4] * paq[5] for paq in paquetes_colocados)
-
-                volumen_total_contenedores += volumen_contenedor
-                volumen_total_utilizado += volumen_utilizado
-
-        # Si no hay contenedores usados, retornar aptitud mínima
-        if contenedores_usados == 0:
-            return (0.0,)
-
-        # Verificar restricciones de cantidad mínima
-        penalizacion = 1.0
-        for tipo_paquete in self.tipos_paquetes:
-            if cantidad_total[tipo_paquete.nombre] < tipo_paquete.cantidad_minima:
-                penalizacion *= 0.6
-            if cantidad_total[tipo_paquete.nombre] > tipo_paquete.cantidad_maxima:
-                penalizacion *= 0.6
-
-        # La aptitud es el porcentaje de volumen utilizado multiplicado por la penalización
-        aptitud = (volumen_total_utilizado / volumen_total_contenedores) * penalizacion
-        return (aptitud,)
-
-    def obtener_posiciones_paquetes(self, individuo) -> dict:
-        """Obtiene las posiciones de los paquetes y dimensiones de todos los contenedores"""
-        genes_por_contenedor = 1 + self.num_tipos_paquetes
-        resultados = {
-            'contenedores': []
-        }
-
-        for i in range(self.num_contenedores):
-            inicio = i * genes_por_contenedor
-            usar_contenedor = individuo[inicio]
-
-            # Usar las dimensiones fijas del contenedor
-            dimensiones = self.requisitos_contenedores[i].dimensiones
-
-            contenedor_info = {
-                'id': i + 1,
-                'en_uso': bool(usar_contenedor),
-                'dimensiones': dimensiones,
-                'paquetes': []
-            }
-
-            # Solo procesar paquetes si el contenedor está en uso
-            if usar_contenedor:
-                genes_contenedor = individuo[inicio:inicio + genes_por_contenedor]
-                paquetes_colocados, _ = self._colocar_paquetes_en_contenedor(genes_contenedor, i)
-
-                contenedor_info['paquetes'] = [
-                    {
-                        'tipo': paq[6],  # Nombre con rotación incluida
-                        'posicion': (paq[0], paq[1], paq[2]),
-                        'dimensiones': (paq[3], paq[4], paq[5])
-                    } for paq in paquetes_colocados
-                ]
-
-            resultados['contenedores'].append(contenedor_info)
-
-        return resultados
+    def _contenedor_info(self, contenedor_info, paquetes_colocados):
+        contenedor_info['paquetes'] = [
+            {
+                'tipo': paq[6],  # Nombre con rotación incluida
+                'posicion': (paq[0], paq[1], paq[2]),
+                'dimensiones': (paq[3], paq[4], paq[5])
+            } for paq in paquetes_colocados
+        ]
 
     def graficar_resultados(self, resultado: dict) -> None:
         """
@@ -206,29 +153,6 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         Args:
             resultado (dict): Diccionario con los resultados de la optimización
         """
-
-
-        def create_box_vertices(pos, dims):
-            """Crea los vértices de una caja 3D dada su posición y dimensiones"""
-            x, y, z = pos
-            l, w, h = dims
-            vertices = np.array([
-                [x, y, z], [x + l, y, z], [x + l, y + w, z], [x, y + w, z],
-                [x, y, z + h], [x + l, y, z + h], [x + l, y + w, z + h], [x, y + w, z + h]
-            ])
-            return vertices
-
-        def create_box_faces(vertices):
-            """Crea las caras de una caja 3D a partir de sus vértices"""
-            faces = [
-                [vertices[0], vertices[1], vertices[2], vertices[3]],  # Inferior
-                [vertices[4], vertices[5], vertices[6], vertices[7]],  # Superior
-                [vertices[0], vertices[1], vertices[5], vertices[4]],  # Atraz
-                [vertices[2], vertices[3], vertices[7], vertices[6]],  # Frente
-                [vertices[0], vertices[3], vertices[7], vertices[4]],   # Izquierda
-                [vertices[1], vertices[2], vertices[6], vertices[5]]    # Derecha
-            ]
-            return faces
 
         # Crear una figura para cada contenedor en uso
         contenedores_en_uso = [cont for cont in resultado['posiciones']['contenedores'] if cont['en_uso']]
@@ -257,15 +181,15 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
             ax = fig.add_subplot(rows, cols, idx, projection='3d')
 
             # Dibujar el contenedor (transparente)
-            vertices_cont = create_box_vertices((0, 0, 0), contenedor['dimensiones'])
-            faces_cont = create_box_faces(vertices_cont)
+            vertices_cont = vertices_caja((0, 0, 0), contenedor['dimensiones'])
+            faces_cont = caras_caja(vertices_cont)
             cont_poly = Poly3DCollection(faces_cont, alpha=0.1, facecolor='gray')
             ax.add_collection3d(cont_poly)
 
             # Dibujar cada paquete
             for paquete in contenedor['paquetes']:
-                vertices_paq = create_box_vertices(paquete['posicion'], paquete['dimensiones'])
-                faces_paq = create_box_faces(vertices_paq)
+                vertices_paq = vertices_caja(paquete['posicion'], paquete['dimensiones'])
+                faces_paq = caras_caja(vertices_paq)
                 tipo_base = paquete['tipo'].split('_')[0]
                 color = color_map[tipo_base]
                 paq_poly = Poly3DCollection(faces_paq, alpha=0.6, facecolor=color)
