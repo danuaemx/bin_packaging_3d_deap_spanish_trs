@@ -12,24 +12,19 @@ def prueba_1d() -> None:
             uso_opcional=False  # Este contenedor siempre se usa
         ),
         RequisitosContenedor(
-            dimensiones=(129,),  # Dimensiones para el segundo contenedor
+            dimensiones=(129,),
             id="Contenedor_2",
-            uso_opcional=False  # Este contenedor puede o no usarse
+            uso_opcional=False
         ),
         RequisitosContenedor(
-            dimensiones=(72,),  # Dimensiones para el tercer contenedor
+            dimensiones=(72,),
             id="Contenedor_3",
-            uso_opcional=False  # Este contenedor puede o no usarse
+            uso_opcional=False
         ),
         RequisitosContenedor(
-            dimensiones=(51,),  # Dimensiones para un cuarto contenedor adicional
+            dimensiones=(51,),
             id="Contenedor_4",
-            uso_opcional=True  # Este contenedor es opcional
-        ),
-        RequisitosContenedor(
-            dimensiones=(57,),  # Dimensiones para un cuarto contenedor adicional
-            id="Contenedor_5",
-            uso_opcional=True  # Este contenedor es opcional
+            uso_opcional=False
         ),
     ]
 
@@ -50,7 +45,7 @@ def prueba_1d() -> None:
             Paquete('P11', (17,), 2, 4),
             Paquete('P11', (19,), 1, 4),
         ],
-        tamano_poblacion=1000,
+        tamano_poblacion=2000,
         generaciones=20
     )
 
@@ -69,27 +64,27 @@ def prueba_2d() -> None:
             RequisitosContenedor(
                 dimensiones=(20, 20),  # Dimensiones fijas para el primer contenedor
                 id="Contenedor_1",
-                uso_opcional=False  # Este contenedor SIEMPRE se usa
+                uso_opcional=True  # Este contenedor puede o no usarse
             ),
             RequisitosContenedor(
-                dimensiones=(13, 19),  # Dimensiones fijas para el segundo contenedor
+                dimensiones=(13, 19),
                 id="Contenedor_2",
-                uso_opcional=False  # Este contenedor puede o no usarse
+                uso_opcional=True
             ),
             RequisitosContenedor(
-                dimensiones=(10, 17),  # Dimensiones fijas para el segundo contenedor
+                dimensiones=(10, 17),
                 id="Contenedor_3",
-                uso_opcional=False  # Este contenedor puede o no usarse
+                uso_opcional=False # Este contenedor siempre se usa
             ),
             RequisitosContenedor(
-                dimensiones=(20, 10),  # Dimensiones fijas para el segundo contenedor
+                dimensiones=(20, 10),
                 id="Contenedor_4",
-                uso_opcional=True  # Este contenedor puede o no usarse
+                uso_opcional=True
             ),
             RequisitosContenedor(
-                dimensiones=(15, 10),  # Dimensiones fijas para el segundo contenedor
+                dimensiones=(15, 10),
                 id="Contenedor_5",
-                uso_opcional=True  # Este contenedor puede o no usarse
+                uso_opcional=True
             ),
 
         ]
@@ -133,25 +128,25 @@ def prueba_2d() -> None:
 def prueba_3d() -> None:
     requisitos_contenedores = [
         RequisitosContenedor(
-            dimensiones=(13, 13, 13),  # Contenedor pequeño cúbico
+            dimensiones=(13, 13, 13),
             id="Contenedor_1",
             uso_opcional=False  # Siempre se usa
         ),
         RequisitosContenedor(
-            dimensiones=(5, 7, 11),  # Contenedor mediano
+            dimensiones=(5, 7, 11),
             id="Contenedor_2",
-            uso_opcional=False  # Opcional
+            uso_opcional=False
         ),
         RequisitosContenedor(
-            dimensiones=(13, 17, 19),  # Contenedor grande
+            dimensiones=(13, 17, 19),
             id="Contenedor_3",
             uso_opcional=False
 
         ),
         RequisitosContenedor(
-            dimensiones=(12, 11, 5),  # Contenedor grande
+            dimensiones=(12, 11, 5),
             id="Contenedor_4",
-            uso_opcional=True
+            uso_opcional=False
 
         ),
     ]
@@ -160,11 +155,11 @@ def prueba_3d() -> None:
     optimizador = OptimizadorEmpaquetadoMultiContenedor3D(
         requisitos_contenedores=requisitos_contenedores,
         tipos_paquetes=[
-            Paquete('P1', (2, 3, 5), 10, 45),  # Paquete pequeño
-            Paquete('P2', (3, 3, 7), 5, 40),  # Paquete cúbico mediano
-            Paquete('P3', (5, 11, 13), 1, 4),  # Paquete mediano
-            Paquete('P4', (2, 3, 3), 3, 45),  # Paquete pequeño
-            Paquete('P5', (7, 7, 7), 3, 10),  # Paquete cúbico uniforme
+            Paquete('P1', (2, 3, 5), 10, 45),
+            Paquete('P2', (3, 3, 7), 5, 40),
+            Paquete('P3', (5, 11, 13), 1, 4),
+            Paquete('P4', (2, 3, 3), 3, 45),
+            Paquete('P5', (7, 7, 7), 3, 10),
 
         ],
         tamano_poblacion=100,
