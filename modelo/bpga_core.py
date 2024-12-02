@@ -135,7 +135,7 @@ class OptimizadorEmpaquetadoMultiContenedor(ABC):
             desviacion = self.logbook.select("desviación")[-1]
 
             #Parar si ya se ha encontrado la solución
-            if mejor_aptitud >= 0.97 or desviacion <= 0.001:
+            if mejor_aptitud >= 1.00 or desviacion <= 0.001:
                 break
 
         return {

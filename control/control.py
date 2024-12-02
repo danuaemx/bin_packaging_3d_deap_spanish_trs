@@ -18,12 +18,16 @@ class Control:
         self._vista.show()
         sys.exit(self._app.exec_())
 
-    def solicitud(self,contenedores: list[RequisitosContenedor],paquetes: list[Paquete],rotaciones: list[tuple]):
+    def solicitud(self,contenedores: list[RequisitosContenedor],
+                  paquetes: list[Paquete],
+                  rotaciones: list[tuple],
+                  poblacion: int,
+                  generaciones: int):
         print(contenedores)
         print(paquetes)
         print(rotaciones)
         print("Solicitud recibida")
-        self._modelo.optimizar(contenedores,paquetes,rotaciones)
+        self._modelo.optimizar(contenedores,paquetes,rotaciones,poblacion,generaciones)
 
     def listo(self):
         print("Listo")

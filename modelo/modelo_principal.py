@@ -7,7 +7,9 @@ class Modelo:
     def __init__(self, control):
         self.control = control
 
-    def optimizar(self,contenedores: list[RequisitosContenedor],paquetes: list[Paquete],rotaciones) -> dict:
+    def optimizar(self,contenedores: list[RequisitosContenedor],paquetes: list[Paquete],rotaciones,
+                  poblacion: int,
+                  generaciones: int) -> dict:
 
         if len(contenedores[0].dimensiones) == 1:
             print(contenedores)
@@ -16,24 +18,24 @@ class Modelo:
                 requisitos_contenedores=contenedores,
                 tipos_paquetes=paquetes,
                 rotaciones_permitidas=rotaciones,
-                tamano_poblacion=2000,
-                generaciones=20)
+                tamano_poblacion= poblacion,
+                generaciones= generaciones)
 
         elif len(contenedores[0].dimensiones) == 2:
             optimizador = OptimizadorEmpaquetadoMultiContenedor2D(
                 requisitos_contenedores=contenedores,
                 tipos_paquetes=paquetes,
                 rotaciones_permitidas=rotaciones,
-                tamano_poblacion=1000,
-                generaciones=20
+                tamano_poblacion=poblacion,
+                generaciones=generaciones
             )
         else:
             optimizador = OptimizadorEmpaquetadoMultiContenedor3D(
                 requisitos_contenedores=contenedores,
                 tipos_paquetes=paquetes,
                 rotaciones_permitidas=rotaciones,
-                tamano_poblacion=100,
-                generaciones=20
+                tamano_poblacion=poblacion,
+                generaciones=generaciones
             )
         resultado = optimizador.optimizar()
         optimizador.analizar_resultados(resultado)

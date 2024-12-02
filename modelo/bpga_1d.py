@@ -134,7 +134,7 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
             # Configurar título y etiquetas
             ax.set_title(
-                f'Contenedor {contenedor["id"]} - Utilización: {self.analizar_resultados(resultado)["metricas_por_contenedor"][indice]["porcentaje_utilizacion"]:.1f}%')
+                f'Contenedor {contenedor["id"]}')
             ax.set_xlabel('Longitud')
             ax.set_yticks([])
 
