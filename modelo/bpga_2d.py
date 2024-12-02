@@ -1,4 +1,4 @@
-from datos import *
+from modelo.datos import RequisitosContenedor, Paquete
 import numpy as np
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 import matplotlib.pyplot as plt
@@ -83,28 +83,43 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
             } for paq in paquetes_colocados
         ]
 
+
     def graficar_resultados(self, resultado: dict) -> None:
         """
-        Grafica la disposición de los paquetes en cada contenedor usando matplotlib.
-        Crea una figura separada para cada contenedor en uso.
+        Grafica la disposición de los paquetes en cada contenedor usando matplotlib con navegación.
+        Crea una figura única con capacidad de navegar entre contenedores.
 
         Args:
             resultado (dict): Diccionario con los resultados de la optimización
         """
+        # Filtrar contenedores en uso
+        contenedores_activos = [c for c in resultado['posiciones']['contenedores'] if c['en_uso'] and c['paquetes']]
+        num_contenedores = len(contenedores_activos)
+
+        if num_contenedores == 0:
+            print("No hay contenedores activos para graficar.")
+            return
+
         # Crear un mapa de colores para cada tipo de paquete
         tipos_unicos = {paquete.nombre for paquete in self.tipos_paquetes}
         colores = plt.cm.get_cmap('tab20')(np.linspace(0, 1, len(tipos_unicos)))
         mapa_colores = dict(zip(tipos_unicos, colores))
 
-        for contenedor in resultado['posiciones']['contenedores']:
-            if not contenedor['en_uso'] or not contenedor['paquetes']:
-                continue
+        # Crear figura única para navegación
+        fig, ax = plt.subplots(figsize=(15, 8))
+        plt.subplots_adjust(bottom=0.2)  # Espacio para instrucciones
 
-            # Crear una nueva figura para cada contenedor
-            fig, ax = plt.subplots(figsize=(12, 8))
+        # Estado para seguimiento
+        estado_actual = {'indice_contenedor': 0}
 
-            # Configurar los límites del gráfico según las dimensiones del contenedor
+        def dibujar_contenedor(indice):
+            # Limpiar el eje anterior
+            ax.clear()
+
+            contenedor = contenedores_activos[indice]
             ancho_contenedor, alto_contenedor = contenedor['dimensiones']
+
+            # Configurar los límites del gráfico
             ax.set_xlim(-1, ancho_contenedor + 1)
             ax.set_ylim(-1, alto_contenedor + 1)
 
@@ -153,8 +168,30 @@ class OptimizadorEmpaquetadoMultiContenedor2D(OptimizadorEmpaquetadoMultiContene
             ax.legend(handles=legend_elements, title="Tipos de Paquetes",
                       loc='center left', bbox_to_anchor=(1, 0.5))
 
-            # Ajustar el layout para que no se solapen los elementos
-            plt.tight_layout()
+            # Actualizar la figura
+            fig.canvas.draw_idle()
 
-        # Mostrar todas las figuras
+        def on_key(event):
+            if event.key == 'left':
+                # Ir al contenedor anterior
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] - 1) % num_contenedores
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+            elif event.key == 'right':
+                # Ir al contenedor siguiente
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] + 1) % num_contenedores
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+
+        # Conectar el evento de teclas
+        fig.canvas.mpl_connect('key_press_event', on_key)
+
+        # Dibujar el primer contenedor
+        dibujar_contenedor(0)
+
+        # Mostrar instrucciones
+        plt.figtext(0.5, 0.02,
+                    'Usa ← y → para navegar entre contenedores',
+                    ha='center', fontsize=10,
+                    bbox=dict(facecolor='white', alpha=0.5))
+
+        plt.tight_layout()
         plt.show()

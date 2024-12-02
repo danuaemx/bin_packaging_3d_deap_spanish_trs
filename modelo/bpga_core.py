@@ -1,5 +1,5 @@
 import random
-from datos import *
+from modelo.datos import RequisitosContenedor, Paquete
 from deap import base, creator, tools, algorithms
 from abc import ABC, abstractmethod
 import numpy as np

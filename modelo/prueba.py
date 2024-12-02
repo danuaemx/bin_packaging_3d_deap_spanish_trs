@@ -182,11 +182,8 @@ def prueba_3d() -> None:
     optimizador.graficar_resultados(resultado)
     optimizador.graficar_estadisticas()
 
-def main() -> None:
 
+if __name__ == '__main__':
     prueba_1d()
     prueba_2d()
     prueba_3d()
-
-if __name__ == "__main__":
-    main()

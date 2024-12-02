@@ -73,14 +73,9 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
     def graficar_resultados(self, resultado: dict) -> None:
         """
-        Grafica los resultados del empaquetado usando matplotlib.
+        Grafica los resultados del empaquetado usando matplotlib con navegación entre contenedores.
         Muestra una visualización de cómo están distribuidos los paquetes en cada contenedor.
         """
-
-
-        # Configurar el estilo de la gráfica
-
-
         # Obtener contenedores en uso
         contenedores_activos = [c for c in resultado['posiciones']['contenedores'] if c['en_uso']]
         num_contenedores = len(contenedores_activos)
@@ -89,19 +84,20 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
             print("No hay contenedores activos para graficar.")
             return
 
-        # Crear una figura con subplots para cada contenedor
-        fig, axs = plt.subplots(num_contenedores, 1, figsize=(15, 4 * num_contenedores))
-        # Convertir axs a array si solo hay un contenedor
-        if num_contenedores == 1:
-            axs = [axs]
-
-        # Colores para diferentes tipos de paquetes
         colores = plt.cm.Set3(np.linspace(0, 1, len(self.tipos_paquetes)))
         color_map = {tipo.nombre: color for tipo, color in zip(self.tipos_paquetes, colores)}
 
-        # Graficar cada contenedor
-        for idx, contenedor in enumerate(contenedores_activos):
-            ax = axs[idx]
+        # Crear figura
+        fig, ax = plt.subplots(figsize=(15, 6))
+        plt.subplots_adjust(bottom=0.2)  # Espacio para botones de navegación
+
+        # Estado para seguimiento
+        estado_actual = {'indice_contenedor': 0}
+
+        def dibujar_contenedor(indice):
+            # Limpiar el eje anterior
+            ax.clear()
+            contenedor = contenedores_activos[indice]
             longitud_contenedor = contenedor['dimensiones'][0]
 
             # Configurar el área de visualización
@@ -138,22 +134,42 @@ class OptimizadorEmpaquetadoMultiContenedor1D(OptimizadorEmpaquetadoMultiContene
 
             # Configurar título y etiquetas
             ax.set_title(
-                f'Contenedor {contenedor["id"]} - Utilización: {self.analizar_resultados(resultado)["metricas_por_contenedor"][idx]["porcentaje_utilizacion"]:.1f}%')
+                f'Contenedor {contenedor["id"]} - Utilización: {self.analizar_resultados(resultado)["metricas_por_contenedor"][indice]["porcentaje_utilizacion"]:.1f}%')
             ax.set_xlabel('Longitud')
             ax.set_yticks([])
 
-        # Añadir leyenda global
-        legend_elements = [patches.Patch(facecolor=color_map[tipo.nombre],
-                                         edgecolor='black',
-                                         alpha=0.7,
-                                         label=f'{tipo.nombre}')
-                           for tipo in self.tipos_paquetes]
-        fig.legend(handles=legend_elements,
-                   loc='center right',
-                   bbox_to_anchor=(0.98, 0.5))
+            # Añadir leyenda
+            legend_elements = [patches.Patch(facecolor=color_map[tipo.nombre],
+                                             edgecolor='black',
+                                             alpha=0.7,
+                                             label=f'{tipo.nombre}')
+                               for tipo in self.tipos_paquetes]
+            ax.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.15),
+                      ncol=len(self.tipos_paquetes))
 
-        # Ajustar espaciado
-        plt.tight_layout(rect=[0, 0, 0.9, 1])
+            # Actualizar la figura
+            fig.canvas.draw_idle()
 
-        # Mostrar la gráfica
+        def on_key(event):
+            if event.key == 'left':
+                # Ir al contenedor anterior
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] - 1) % num_contenedores
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+            elif event.key == 'right':
+                # Ir al contenedor siguiente
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] + 1) % num_contenedores
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+
+        # Conectar el evento de teclas
+        fig.canvas.mpl_connect('key_press_event', on_key)
+
+        # Dibujar el primer contenedor
+        dibujar_contenedor(0)
+
+        # Mostrar instrucciones
+        plt.figtext(0.5, 0.02,
+                    'Usa ← y → para navegar entre contenedores',
+                    ha='center', fontsize=10,
+                    bbox=dict(facecolor='white', alpha=0.5))
+
         plt.show()
