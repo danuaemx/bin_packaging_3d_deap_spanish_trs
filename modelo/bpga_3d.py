@@ -1,4 +1,4 @@
-from datos import *
+from modelo.datos import RequisitosContenedor, Paquete
 import numpy as np
 from modelo.bpga_core import OptimizadorEmpaquetadoMultiContenedor
 import matplotlib.pyplot as plt
@@ -122,26 +122,19 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
 
     def graficar_resultados(self, resultado: dict) -> None:
         """
-        Visualiza los resultados del empaquetado en 3D usando matplotlib.
-        Muestra cada contenedor en uso con los paquetes colocados en diferentes colores.
+        Visualiza los resultados del empaquetado en 3D con navegación entre contenedores.
+        Muestra un contenedor a la vez con los paquetes colocados en diferentes colores.
 
         Args:
             resultado (dict): Diccionario con los resultados de la optimización
         """
 
-        # Crear una figura para cada contenedor en uso
+        # Filtrar contenedores en uso
         contenedores_en_uso = [cont for cont in resultado['posiciones']['contenedores'] if cont['en_uso']]
 
         if not contenedores_en_uso:
             print("No hay contenedores en uso para visualizar.")
             return
-
-        # Configurar el diseño de la cuadrícula para los subplots
-        n_contenedores = len(contenedores_en_uso)
-        cols = min(3, n_contenedores)  # Máximo 3 columnas
-        rows = (n_contenedores + cols - 1) // cols
-
-        fig = plt.figure(figsize=(6 * cols, 6 * rows))
 
         # Generar colores únicos para cada tipo de paquete
         tipos_unicos = set()
@@ -152,11 +145,23 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
         colores = plt.cm.get_cmap('tab20')(np.linspace(0, 1, len(tipos_unicos)))
         color_map = dict(zip(tipos_unicos, colores))
 
-        for idx, contenedor in enumerate(contenedores_en_uso, 1):
-            ax = fig.add_subplot(rows, cols, idx, projection='3d')
+        # Crear figura única para navegación
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        plt.subplots_adjust(bottom=0.2)  # Espacio para instrucciones
+
+        # Estado para seguimiento
+        estado_actual = {'indice_contenedor': 0}
+
+        def dibujar_contenedor(indice):
+            # Limpiar el eje anterior
+            ax.clear()
+
+            contenedor = contenedores_en_uso[indice]
+            dimensiones_cont = contenedor['dimensiones']
 
             # Dibujar el contenedor (transparente)
-            vertices_cont = vertices_caja((0, 0, 0), contenedor['dimensiones'])
+            vertices_cont = vertices_caja((0, 0, 0), dimensiones_cont)
             faces_cont = caras_caja(vertices_cont)
             cont_poly = Poly3DCollection(faces_cont, alpha=0.1, facecolor='gray')
             ax.add_collection3d(cont_poly)
@@ -171,19 +176,44 @@ class OptimizadorEmpaquetadoMultiContenedor3D(OptimizadorEmpaquetadoMultiContene
                 ax.add_collection3d(paq_poly)
 
             # Configurar los límites y etiquetas
-            ax.set_xlim([0, contenedor['dimensiones'][0]])
-            ax.set_ylim([0, contenedor['dimensiones'][1]])
-            ax.set_zlim([0, contenedor['dimensiones'][2]])
+            ax.set_xlim([0, dimensiones_cont[0]])
+            ax.set_ylim([0, dimensiones_cont[1]])
+            ax.set_zlim([0, dimensiones_cont[2]])
             ax.set_xlabel('Largo (x)')
             ax.set_ylabel('Ancho (y)')
             ax.set_zlabel('Alto (z)')
             ax.set_title(f'Contenedor {contenedor["id"]}')
 
-        # Agregar leyenda
-        legend_elements = [plt.Rectangle((0, 0), 1, 1, facecolor=color_map[tipo])
-                           for tipo in tipos_unicos]
-        fig.legend(legend_elements, list(tipos_unicos),
-                   loc='center left', bbox_to_anchor=(1, 0.5))
+            # Agregar leyenda
+            legend_elements = [plt.Rectangle((0, 0), 1, 1, facecolor=color_map[tipo], alpha=0.6)
+                               for tipo in tipos_unicos]
+            ax.legend(legend_elements, list(tipos_unicos),
+                      loc='center left', bbox_to_anchor=(1, 0.5))
+
+            # Actualizar la figura
+            fig.canvas.draw_idle()
+
+        def on_key(event):
+            if event.key == 'left':
+                # Ir al contenedor anterior
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] - 1) % len(contenedores_en_uso)
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+            elif event.key == 'right':
+                # Ir al contenedor siguiente
+                estado_actual['indice_contenedor'] = (estado_actual['indice_contenedor'] + 1) % len(contenedores_en_uso)
+                dibujar_contenedor(estado_actual['indice_contenedor'])
+
+        # Conectar el evento de teclas
+        fig.canvas.mpl_connect('key_press_event', on_key)
+
+        # Dibujar el primer contenedor
+        dibujar_contenedor(0)
+
+        # Mostrar instrucciones
+        plt.figtext(0.5, 0.02,
+                    'Usa ← y → para navegar entre contenedores',
+                    ha='center', fontsize=10,
+                    bbox=dict(facecolor='white', alpha=0.5))
 
         plt.tight_layout()
         plt.show()
